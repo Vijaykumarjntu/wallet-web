@@ -1,40 +1,45 @@
-  // 'use client';
-
-  // import { PrivyProvider } from '@privy-io/react-auth';
-
-  // export function Providers({ children }: { children: React.ReactNode }) {
-  //   return (
-  //     <PrivyProvider
-  //       appId="cmqrz3ioy00980cl6fin7sfln" // Your real Privy App ID
-  //       config={{
-  //         loginMethods: ['email', 'google', 'apple', 'wallet'],
-  //         appearance: {
-  //           theme: 'dark',
-  //           accentColor: '#ff00aa',
-  //         },
-  //         supportedChains: ['solana'],
-  //       }}
-  //     >
-  //       {children}
-  //     </PrivyProvider>
-  //   );
-  // }
-
 // app/providers.tsx
 'use client';
 
 import { PrivyProvider } from '@privy-io/react-auth';
+import { useEffect, useState } from 'react';
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  const [isClient, setIsClient] = useState(false);
+  const [appId, setAppId] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    // Set client-side flag
+    setIsClient(true);
+    
+    // Load environment variable on client side
+    const privyAppId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+    
+    if (!privyAppId) {
+      console.error('NEXT_PUBLIC_PRIVY_APP_ID is not defined in environment variables');
+      // You could show an error UI here if needed
+    }
+    
+    setAppId(privyAppId);
+  }, []);
+
+  // Don't render anything on server or if appId is not loaded
+  if (!isClient || !appId) {
+    // Optional: You can return a loading state or null
+    return <>{children}</>; // Or return null to render nothing until client loads
+  }
+
   return (
     <PrivyProvider
-      appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID}
+      appId={appId}
       config={{
         loginMethods: ['google', 'apple', 'email'],
         appearance: {
           theme: 'dark',
           accentColor: '#676FFF',
         },
+        // Add supported chains if needed
+        // supportedChains: ['solana'],
       }}
     >
       {children}

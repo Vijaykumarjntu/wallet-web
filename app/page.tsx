@@ -163,7 +163,7 @@ export default function ChadWalletLanding() {
               <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-2xl" style={{backgroundColor: currentToken.color + '20'}}>
                 {currentToken.symbol}
               </div>
-              <div className="text-left">
+              <div className="text-left"> 
                 <div className="font-mono text-xl font-bold">{currentToken.symbol}</div>
                 <div className="text-sm text-zinc-400">{currentToken.name}</div>
               </div>
@@ -235,12 +235,34 @@ export default function ChadWalletLanding() {
               </Link>
             </div>
             
-            <div className="bg-zinc-900 border border-white/10 rounded-3xl aspect-video flex items-center justify-center relative overflow-hidden">
+            {/* <div className="bg-zinc-900 border border-white/10 rounded-3xl aspect-video flex items-center justify-center relative overflow-hidden">
               <div className="text-center">
                 <div className="text-6xl mb-4">📈</div>
                 <p className="text-zinc-500">Trading UI coming in next iteration</p>
               </div>
+            </div> */}
+
+            <div className="bg-zinc-900/50 border border-white/10 rounded-3xl p-6">
+              <div className="flex justify-between items-center mb-4">
+                <div className="font-mono text-lg">{currentToken.symbol} LIVE</div>
+                <div className={`font-medium ${currentToken.change.startsWith('+') ? 'text-green-400' : 'text-red-400'}`}>
+                  {currentToken.change} (24h)
+                </div>
+              </div>
+              
+              <div className="h-48 bg-black rounded-2xl relative overflow-hidden flex items-end">
+                {/* Simulated price line */}
+                <div className="absolute inset-0 flex items-end px-6 pb-6">
+                  <div className="w-full h-24 bg-gradient-to-t from-green-500/30 via-green-500/10 to-transparent rounded-t-3xl relative">
+                    <div className="absolute -top-3 left-1/3 w-6 h-6 bg-green-400 rounded-full shadow-lg flex items-center justify-center">
+                      <div className="w-2.5 h-2.5 bg-black rounded-full"></div>
+                    </div>
+                  </div>
+                </div>
+                <div className="absolute top-4 right-4 text-[10px] bg-green-500/20 text-green-400 px-3 py-1 rounded-full font-mono">LIVE</div>
+              </div>
             </div>
+            
           </div>
         </div>
       </section>

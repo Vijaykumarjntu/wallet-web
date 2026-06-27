@@ -3,17 +3,23 @@
 
 import { usePrivy } from '@privy-io/react-auth';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function LoginPage() {
-  const { login, authenticated, ready } = usePrivy();
+  const { login, authenticated, ready, user } = usePrivy();
   const router = useRouter();
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
-    if (authenticated) {
-      router.push('/'); // Redirect to home after login
+    // Add a small delay to ensure state is fully updated
+    if (authenticated && !isRedirecting) {
+      setIsRedirecting(true);
+      // Small delay to ensure everything is settled
+      setTimeout(() => {
+        router.push('/');
+      }, 100);
     }
-  }, [authenticated, router]);
+  }, [authenticated, router, isRedirecting]);
 
   if (!ready) return <div>Loading...</div>;
 
@@ -23,9 +29,10 @@ export default function LoginPage() {
         <h1 className="text-3xl font-bold text-white text-center">Welcome to ChadWallet</h1>
         <button 
           onClick={login}
-          className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+          disabled={isRedirecting}
+          className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
         >
-          Sign in with Google/Apple
+          {isRedirecting ? 'Redirecting...' : 'Sign in with Google/Apple'}
         </button>
       </div>
     </div>

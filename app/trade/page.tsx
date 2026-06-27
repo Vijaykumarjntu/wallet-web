@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { ArrowLeft, TrendingUp, Users, BarChart3, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { usePrivy } from '@privy-io/react-auth';
+import { useRouter } from 'next/navigation';
+// import { BarChart3 } from 'lucide-react';
 
 interface Token {
   symbol: string;
@@ -21,11 +23,22 @@ const initialTrending = [
 
 function PrivyUserButton() {
   const { user, logout } = usePrivy();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      // Redirect to login page after logout
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
 
   if (!user) {
     return (
       <button 
-        onClick={() => window.location.href = '/'}
+        onClick={() => router.push('/login')}
         className="px-5 py-2 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 text-sm"
       >
         Sign In
@@ -40,7 +53,7 @@ function PrivyUserButton() {
         {user.email?.address || user.google?.email || 'Connected'}
       </div>
       <button 
-        onClick={logout}
+        onClick={handleLogout}
         className="px-5 py-2 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 text-sm"
       >
         Logout
@@ -50,10 +63,19 @@ function PrivyUserButton() {
 }
 
 export default function TradingPage() {
+  const { authenticated, ready } = usePrivy();
+  const router = useRouter();
   const [trendingTokens, setTrendingTokens] = useState<Token[]>([]);
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const [activeTab, setActiveTab] = useState<'chart' | 'holders' | 'trades'>('chart');
   const [loading, setLoading] = useState(true);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (ready && !authenticated) {
+      router.push('/login');
+    }
+  }, [ready, authenticated, router]);
 
   // Fetch real trending Solana tokens from Dexscreener
   useEffect(() => {
@@ -104,6 +126,77 @@ export default function TradingPage() {
     const interval = setInterval(fetchTrending, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // Simple Canvas Chart
+  useEffect(() => {
+    if (activeTab !== 'chart' || !selectedToken) return;
+
+    const canvas = document.getElementById('simple-chart') as HTMLCanvasElement;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    canvas.width = canvas.offsetWidth;
+    canvas.height = 380;
+
+    const basePrice = parseFloat(selectedToken.price);
+    const points = Array.from({ length: 80 }, (_, i) => ({
+      x: (i / 79) * canvas.width,
+      y: canvas.height * (0.3 + Math.sin(i / 8) * 0.4 + (Math.random() - 0.5) * 0.3)
+    }));
+
+    // Background grid
+    ctx.strokeStyle = '#27272a';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 6; i++) {
+      ctx.beginPath();
+      ctx.moveTo(0, (i * canvas.height) / 6);
+      ctx.lineTo(canvas.width, (i * canvas.height) / 6);
+      ctx.stroke();
+    }
+
+    // Price line
+    ctx.strokeStyle = '#22c55e';
+    ctx.lineWidth = 3;
+    ctx.shadowColor = '#22c55e';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+
+    for (let i = 1; i < points.length; i++) {
+      ctx.lineTo(points[i].x, points[i].y);
+    }
+    ctx.stroke();
+
+    // Glow dots
+    ctx.fillStyle = '#22c55e';
+    ctx.shadowBlur = 15;
+    points.forEach((p, i) => {
+      if (i % 8 === 0) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
+  }, [activeTab, selectedToken]);
+
+  // Show loading while checking authentication
+  if (!ready) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="text-zinc-400">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render anything if not authenticated (will redirect)
+  if (!authenticated) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col">
@@ -210,48 +303,89 @@ export default function TradingPage() {
               <div className="text-xs text-zinc-500">Powered by TradingView + Birdeye API (mock)</div>
             </div>
 
-            {activeTab === 'chart' && (
-              <div className="h-[520px] bg-zinc-900 rounded-3xl flex items-center justify-center border border-white/10">
-                <div className="text-center">
-                  <BarChart3 className="w-20 h-20 mx-auto mb-6 text-zinc-700" />
-                  <p className="text-xl text-zinc-400">Real TradingView chart would go here</p>
-                  <p className="text-sm text-zinc-500 mt-2">Integrate @tradingview/charting-library in production</p>
+            
+
+            {activeTab === 'chart' && selectedToken && (
+            <div className="h-[520px] bg-zinc-900 rounded-3xl border border-white/10 p-6 relative overflow-hidden">
+              <div className="flex justify-between mb-6">
+                <div>
+                  <div className="text-sm text-zinc-400">PRICE CHART</div>
+                  <div className="text-3xl font-mono font-bold text-white">${selectedToken.price}</div>
+                </div>
+                <div className={`text-right ${parseFloat(selectedToken.change) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  <div className="text-sm">24H CHANGE</div>
+                  <div className="text-2xl font-medium">{selectedToken.change}%</div>
                 </div>
               </div>
-            )}
 
-            {activeTab === 'holders' && (
+              {/* Simple Live Line Chart using Canvas */}
+              <canvas id="simple-chart" className="w-full h-[380px] bg-black/40 rounded-2xl" />
+
+              <div className="absolute bottom-6 left-6 right-6 flex justify-between text-xs text-zinc-500">
+                <div>1H AGO</div>
+                <div>NOW</div>
+              </div>
+            </div>
+          )}
+
+            {activeTab === 'holders' && selectedToken && (
               <div className="space-y-4">
-                {[1,2,3,4,5].map(i => (
-                  <div key={i} className="flex items-center justify-between bg-zinc-900/50 p-5 rounded-2xl">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-zinc-800 rounded-full" />
-                      <div>
-                        <div className="font-mono">0x71C7...{i}9f2a</div>
-                        <div className="text-xs text-zinc-500">Top Holder #{i}</div>
+                {Array.from({ length: 6 }).map((_, i) => {
+                  const percentage = (12 - i * 1.5).toFixed(1);
+                  const address = `0x${Math.random().toString(16).slice(2, 10)}...${Math.random().toString(16).slice(2, 6)}`;
+                  return (
+                    <div key={i} className="flex items-center justify-between bg-zinc-900/50 p-5 rounded-2xl border border-white/5">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-gradient-to-br from-zinc-700 to-zinc-800 rounded-full flex items-center justify-center text-xs font-mono">
+                          {i + 1}
+                        </div>
+                        <div>
+                          <div className="font-mono text-sm">{address}</div>
+                          <div className="text-xs text-zinc-500">Wallet #{i + 1}</div>
+                        </div>
+                      </div>
+                      <div className="text-right font-mono">
+                        <div>{percentage}%</div>
+                        <div className="text-xs text-zinc-500">
+                          ~${(parseFloat(selectedToken.price) * parseFloat(percentage) * 42000).toFixed(0)}
+                        </div>
                       </div>
                     </div>
-                    <div className="text-right font-mono">
-                      8.42% <span className="text-zinc-500">($1.54M)</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-            )}
+            )}  
 
-            {activeTab === 'trades' && (
+            {activeTab === 'trades' && selectedToken && (
               <div className="space-y-3 max-h-[520px] overflow-auto pr-4">
-                {Array.from({length: 12}).map((_, i) => (
-                  <div key={i} className="flex justify-between items-center bg-zinc-900/50 p-4 rounded-2xl text-sm">
-                    <div className="flex items-center gap-4">
-                      <div className={i % 3 === 0 ? "text-green-400" : "text-red-400"}>{i % 3 === 0 ? 'BUY' : 'SELL'}</div>
-                      <div>0xA1b2...c3D4</div>
+                {Array.from({ length: 15 }).map((_, i) => {
+                  const isBuy = i % 3 !== 0;
+                  const amount = (Math.random() * 420 + 15).toFixed(1);
+                  const price = parseFloat(selectedToken.price);
+                  const total = (parseFloat(amount) * price).toFixed(2);
+                  const timeAgo = i === 0 ? "just now" : `${i + 1}m ago`;
+
+                  return (
+                    <div key={i} className="flex justify-between items-center bg-zinc-900/50 p-4 rounded-2xl text-sm border border-white/5">
+                      <div className="flex items-center gap-4">
+                        <div className={isBuy ? "text-green-400" : "text-red-400 font-medium"}>
+                          {isBuy ? 'BUY' : 'SELL'}
+                        </div>
+                        <div className="font-mono text-xs text-zinc-500">0x{Math.random().toString(16).slice(2, 10)}...</div>
+                      </div>
+                      
+                      <div className="font-mono text-right">
+                        {amount} {selectedToken.symbol}
+                      </div>
+                      
+                      <div className="font-mono text-right">
+                        ${total}
+                      </div>
+                      
+                      <div className="text-xs text-zinc-500 w-16 text-right">{timeAgo}</div>
                     </div>
-                    <div className="font-mono">142.8 {selectedToken?.symbol || 'TOKEN'}</div>
-                    <div>${(Math.random()*4200 + 800).toFixed(2)}</div>
-                    <div className="text-xs text-zinc-500">just now</div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
